@@ -49,6 +49,33 @@ namespace GateWay
 		state_ = State::CLOSED;
 	}
 
+	SerialPort& SerialPort::operator= (const SerialPort& source)
+	{
+		this->device_ = source.device_;
+		this->baudRateType_ = source.baudRateType_;
+		this->baudRateStandard_ = source.baudRateStandard_;
+		this->numDataBits_ = source.numDataBits_;
+		this->parity_ = source.parity_;
+		this->numStopBits_ = source.numStopBits_;
+		this->fileDesc_ = source.fileDesc_;
+		this->timeout_ms_ = source.timeout_ms_;
+		this->state_ = source.state_;
+	}
+
+	SerialPort::SerialPort(const SerialPort& source)
+	{
+		this->device_ = source.device_;
+		this->baudRateType_ = source.baudRateType_;
+		this->baudRateStandard_ = source.baudRateStandard_;
+		this->baudRateCustom_ = source.baudRateCustom_;
+		this->numDataBits_ = source.numDataBits_;
+		this->parity_ = source.parity_;
+		this->numStopBits_ = source.numStopBits_;
+		this->fileDesc_ = source.fileDesc_;
+		this->timeout_ms_ = source.timeout_ms_;
+		this->state_ = source.state_;
+	}
+
 	SerialPort::SerialPort(const std::string& device, BaudRate baudRate) :
 		SerialPort() {
 		device_ = device;
@@ -75,7 +102,7 @@ namespace GateWay
 
 	SerialPort::~SerialPort() {
 		try {
-			Close();
+			// Close();
 		}
 		catch (...) {
 			// We can't do anything about this!
@@ -141,9 +168,13 @@ namespace GateWay
 			THROW_EXCEPT("Could not open device " + device_ + ". Is the device name correct and do you have read/write permission?");
 		}
 
+		// Set the file descriptor non blocking
+		//int flags = fcntl(fileDesc_, F_GETFL, 0);
+		//fcntl(fileDesc_, F_SETFL, flags | O_NONBLOCK);
+
 		ConfigureTermios();
 
-		// std::cout << "COM port opened successfully." << std::endl;
+		std::cout << "COM port opened successfully." << std::endl;
 		state_ = State::OPEN;
 	}
 
@@ -485,7 +516,7 @@ namespace GateWay
 				receivedMessageCompleted = true;
 				return false;
 			}
-			// std::cout << "Bytes receiving" << std::endl;
+			//std::cout << "Bytes receiving" << std::endl;
 			this->receivedMessageCompleted = false;
 			this->bytesReceived = bytesAvailable;
 			digitalWrite(ledNoRx, true);
@@ -494,7 +525,7 @@ namespace GateWay
 		else if (bytesAvailable == this->bytesReceived)
 		{
 			// No more bytes received; so we are finished.
-			// std::cout << "No more bytes received, total: " << bytesAvailable << std::endl;
+			 //std::cout << "No more bytes received, total: " << bytesAvailable << std::endl;
 			receivedMessageCompleted = true;
 			digitalWrite(ledNoRx, false);
 			return false;

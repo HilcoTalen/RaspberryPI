@@ -1,4 +1,4 @@
-#include "IntergasThread.h"
+#include "Intergas.h"
 #include <string.h>
 #include <cassert>
 #include <list>
@@ -7,11 +7,22 @@ namespace GateWay
 {
 	using namespace std;
 
-	IntergasThread::IntergasThread()
+	/// <summary>
+	/// Creates the Intergas thread object.
+	/// </summary>
+	Intergas::Intergas()
 	{
+		this->portName = "/dev/ttyUSB0";
+		this->baudRate = BaudRate::B_9600;
+		this->dataBits = NumDataBits::EIGHT;
+		this->parity = Parity::NONE;
+		this->stopBits = NumStopBits::ONE;
 	}
 
-	void IntergasThread::Read()
+	/// <summary>
+	/// Reads the Intergas module.
+	/// </summary>
+	void Intergas::Read()
 	{
 		MessageType messageType = GetMessageType();
 
@@ -47,13 +58,13 @@ namespace GateWay
 		// Write some ASCII data
 		this->UpdateSendedData((uint16_t)command.size());
 
-		serialPortIntergas.Write(command);
+		this->serialPort.Write(command);
 
 		// Read the data.
 		std::string readData;
 		std::vector<uint8_t> data;
 
-		serialPortIntergas.ReadBinary(data);
+		this->serialPort.ReadBinary(data);
 		if (data.size() == 0)
 		{
 			timeOuts++;
@@ -66,17 +77,23 @@ namespace GateWay
 		if (data.size() == 32)
 		{
 			Parse(data, messageType);
-			//PrintValues();
+			PrintValues();
 		}
 		else
 		{
 			std::cout << "Received incorrect message" << std::endl;
 		}
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+		// Wait one second for next request.
+		this->Sleep(1000);
 	}
 
-	void IntergasThread::Parse(std::vector<uint8_t> data, MessageType messageType)
+	/// <summary>
+	/// Parses the received data.
+	/// </summary>
+	/// <param name="data">The data.</param>
+	/// <param name="messageType">The message type of the received data.</param>
+	void Intergas::Parse(std::vector<uint8_t> data, MessageType messageType)
 	{
 		if (data.size() == 32)
 		{
@@ -126,8 +143,8 @@ namespace GateWay
 				this->GetRegister(aIgnitionFailed).SetValue(ConvertBytesToUint16(data[10], data[11]));
 				this->GetRegister(aFlameLost).SetValue(ConvertBytesToUint16(data[12], data[13]));
 				this->GetRegister(aResets).SetValue(ConvertBytesToUint16(data[14], data[15]));
-				this->GetRegister(aGasmeterHeating).SetValue((int32_t)ConvertBytesToUint32(data[19], data[18], data[17], data[16]));
-				this->GetRegister(aGasmeterHotWater).SetValue((int32_t)ConvertBytesToUint32(data[23], data[22], data[21], data[20]));
+				this->GetRegister(aGasmeterHeating).SetValue((int32_t)ConvertBytesToUint32(data[16], data[17], data[18], data[19]));
+				this->GetRegister(aGasmeterHotWater).SetValue((int32_t)ConvertBytesToUint32(data[20], data[21], data[22], data[23]));
 				this->GetRegister(aWaterMeter).SetValue((int32_t)ConvertBytesToUint32(data[25], data[26], data[29], 0x00));
 				this->GetRegister(aBurnerstartsHeating).SetValue(ConvertBytesToUint16(data[27], data[28]));
 				break;
@@ -226,13 +243,27 @@ namespace GateWay
 		}
 	}
 
-	uint32_t IntergasThread::ConvertBytesToUint32(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+	/// <summary>
+	/// Converts given bytes to an 32 bit value.
+	/// </summary>
+	/// <param name="a">Byte a.</param>
+	/// <param name="b">Byte b.</param>
+	/// <param name="c">Byte c.</param>
+	/// <param name="d">Byte d.</param>
+	/// <returns>The 32 bit value.</returns>
+	uint32_t Intergas::ConvertBytesToUint32(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 	{
 		// UINT32 Little Endian (DCBA)
-		return ((uint32_t)a << 24) + ((uint32_t)b << 16) + ((uint32_t)c << 8) + ((uint32_t)d);
+		return ((uint32_t)d << 24) + ((uint32_t)c << 16) + ((uint32_t)b << 8) + ((uint32_t)a);
 	}
 
-	uint16_t IntergasThread::ConvertBytesToUint16(uint8_t msb, uint8_t lsb)
+	/// <summary>
+	/// Convert the bytes to an uint16 value.
+	/// </summary>
+	/// <param name="msb">The most significant byte.</param>
+	/// <param name="lsb">The least significant byte.</param>
+	/// <returns></returns>
+	uint16_t Intergas::ConvertBytesToUint16(uint8_t msb, uint8_t lsb)
 	{
 		return ((uint16_t)lsb << 8) + msb;
 	}
@@ -243,7 +274,7 @@ namespace GateWay
 	/// <param name="lsb"></param>
 	/// <param name="msb"></param>
 	/// <returns></returns>
-	float IntergasThread::ConvertBytesToFloat(uint8_t lsb, uint8_t msb)
+	float Intergas::ConvertBytesToFloat(uint8_t lsb, uint8_t msb)
 	{
 		float f;
 		if (msb > 127)
@@ -257,7 +288,11 @@ namespace GateWay
 		return f;
 	}
 
-	MessageType IntergasThread::GetMessageType()
+	/// <summary>
+	/// Gets the message type to send.
+	/// </summary>
+	/// <returns></returns>
+	MessageType Intergas::GetMessageType()
 	{
 		if (((messagesSended - messageNumberLastRevision) > intervalRevision) || messageNumberLastRevision == 0)
 		{
@@ -286,25 +321,12 @@ namespace GateWay
 		return DATA;
 	}
 
-	bool IntergasThread::Initialize()
-	{
-		try
-		{
-			// Create serial port object and open serial port at 57600 buad, 8 data bits, no parity bit, and one stop bit (8n1)
-			SerialPort serialPort("/dev/ttyUSB0", BaudRate::B_9600, NumDataBits::EIGHT, Parity::NONE, NumStopBits::ONE);
-			serialPortIntergas = serialPort;
-			serialPortIntergas.SetTimeout(500); // Set timeout to 0.5 second.
-			serialPortIntergas.Open();
-			CreateDataValues();
-			return true;
-		}
-		catch (Exception)
-		{
-			return false;
-		}
-	}
-
-	void IntergasThread::CreateDataValues()
+	/// <summary>
+	/// Creates the data values.
+	/// As the Intergas communication does not work with register numbers, we
+	/// make the regiseter numbers our selves.
+	/// </summary>
+	void Intergas::CreateDatalist()
 	{
 		// The data
 		this->DataList.push_back(DataValue(Float, aTempExhaust, "Exhaust temperature"));
@@ -416,16 +438,12 @@ namespace GateWay
 		this->DataList.push_back(DataValue(Word, aFault31Times, "Fault 31 times"));
 	}
 
-	IntergasThread::~IntergasThread()
+	/// <summary>
+	/// The destructor.
+	/// </summary>
+	Intergas::~Intergas()
 	{
-		try
-		{
-			// Close the serial port
-			serialPortIntergas.Close();
-		}
-		// Too bad.
-		catch (Exception)
-		{
-		}
+		// Nothing to destruct.
+		// Serial port is closed in base class.
 	}
 }

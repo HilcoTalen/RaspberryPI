@@ -72,23 +72,23 @@
   <ItemGroup>
     <ClCompile Include="Communication\CommunicationStats.cpp" />
     <ClCompile Include="Communication\Exception.cpp" />
-    <ClCompile Include="Hewalex\HewalexThread.cpp" />
-    <ClCompile Include="Intergas\IntergasThread.cpp" />
+    <ClCompile Include="Hewalex\Hewalex.cpp" />
+    <ClCompile Include="Intergas\Intergas.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Communication\SerialPort.cpp" />
     <ClCompile Include="ModBUS\DataValue.cpp" />
     <ClCompile Include="ModBUS\ModbusServer.cpp" />
-    <ClCompile Include="P1\P1Thread.cpp" />
+    <ClCompile Include="P1\P1.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Communication\CommunicationStats.h" />
     <ClInclude Include="Communication\Exception.h" />
-    <ClInclude Include="Hewalex\HewalexThread.h" />
-    <ClInclude Include="Intergas\IntergasThread.h" />
+    <ClInclude Include="Hewalex\Hewalex.h" />
+    <ClInclude Include="Intergas\Intergas.h" />
     <ClInclude Include="Communication\SerialPort.h" />
     <ClInclude Include="ModBUS\DataValue.h" />
     <ClInclude Include="ModBUS\ModbusServer.h" />
-    <ClInclude Include="P1\P1Thread.h" />
+    <ClInclude Include="P1\P1.h" />
   </ItemGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <Link>

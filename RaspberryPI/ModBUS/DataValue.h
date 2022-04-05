@@ -37,9 +37,7 @@ namespace GateWay
 
 		void SetValue(float value);
 		void SetValue(uint8_t value);
-		void SetValue(int16_t value);
 		void SetValue(int32_t value);
-		void SetValue(tm value);
 		void SetValue(uint8_t* data);
 		std::string ToString();
 		vector<uint8_t> getBytes();

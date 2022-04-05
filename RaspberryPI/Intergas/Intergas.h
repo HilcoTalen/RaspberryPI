@@ -22,16 +22,14 @@ namespace GateWay
 		PRODUCTIONCODE,
 	};
 
-	class IntergasThread : public CommunicationStats
+	class Intergas : public CommunicationStats
 	{
 	public:
 
-		IntergasThread();
-		bool Initialize();
-		void CreateDataValues();
+		Intergas();
 		void Read();
-		
-		~IntergasThread();
+		void CreateDatalist();
+		~Intergas();
 
 	private:
 		uint32_t messageNumberLastData = 0;
@@ -54,9 +52,7 @@ namespace GateWay
 		float ConvertBytesToFloat(uint8_t lsb, uint8_t msb);
 		uint16_t ConvertBytesToUint16(uint8_t lsb, uint8_t msb);
 		uint32_t ConvertBytesToUint32(uint8_t a, uint8_t b, uint8_t c, uint8_t d);
-
 		MessageType GetMessageType();
-		SerialPort serialPortIntergas;
 
 		string hardwareRelease;
 		string softwareRelease;

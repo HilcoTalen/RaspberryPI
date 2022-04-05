@@ -1,46 +1,42 @@
 #include <string.h>
 #include <map>
 #include <cassert>
-#include "HewalexThread.h"
+#include "Hewalex.h"
 #include <valarray>
 
 namespace GateWay
 {
 	using namespace std;
 
-	HewalexThread::HewalexThread()
+	/// <summary>
+	/// Creates the Hewalex thread object.
+	/// </summary>
+	Hewalex::Hewalex()
 	{
+		this->portName = "/dev/ttyUSB2";
+		this->baudRate = BaudRate::B_38400;
+		this->dataBits = NumDataBits::EIGHT;
+		this->parity = Parity::NONE;
+		this->stopBits = NumStopBits::ONE;
 		this->startRegister = 999;
 	}
 
-	HewalexThread::~HewalexThread()
+	/// <summary>
+	/// The destructor.
+	/// </summary>
+	Hewalex::~Hewalex()
 	{
+		// Nothing to destruct.
+		// Serial port is closed in base class.
 	}
 
-	bool HewalexThread::Initialize()
+	/// <summary>
+	/// Reads the data of the ZPS Hewalex controller.
+	/// Only read the register from 100 till 350.
+	/// </summary>
+	void Hewalex::Read()
 	{
-		try
-		{
-			// Create serial port object and open serial port at 57600 buad, 8 data bits, no parity bit, and one stop bit (8n1)
-			SerialPort serialPort("/dev/ttyUSB1", BaudRate::B_38400, NumDataBits::EIGHT, Parity::NONE, NumStopBits::ONE);
-			serialPortHewalex = serialPort;
-			// Use SerialPort serialPort("/dev/ttyACM0", 13000); instead if you want to provide a custom baud rate
-			serialPortHewalex.SetTimeout(1000); // Block when reading until any data is received
-			serialPortHewalex.Open();
-
-			this->FillRegisters();
-
-			return true;
-		}
-		catch (Exception)
-		{
-			return false;
-		}
-	}
-
-	void HewalexThread::Read()
-	{
-		if (this->startRegister > 250)
+		if (this->startRegister > 350)
 		{
 			this->startRegister = 100;
 		}
@@ -51,14 +47,12 @@ namespace GateWay
 
 		vector<uint8_t> command = CreatePacket(this->sourceAddress, this->destinationAddress, this->startRegister, this->amountOfRegisters);
 
-		serialPortHewalex.WriteBinary(command);
+		this->serialPort.WriteBinary(command);
 		this->UpdateSendedData((uint16_t)command.size());
 
-		// Read some data back (will block until at least 1 byte is received due to the SetTimeout(-1) call above)
-		std::string readData;
 		std::vector<uint8_t> data;
 
-		serialPortHewalex.ReadBinary(data);
+		this->serialPort.ReadBinary(data);
 		if (data.size() != 0)
 		{
 			this->UpdateReceivedData((uint16_t)data.size());
@@ -69,11 +63,19 @@ namespace GateWay
 		{
 			this->timeOuts++;
 		}
-		//this->PrintRegisters();
-		std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+		this->PrintValues();
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	}
 
-	vector<uint8_t> HewalexThread::CreatePacket(uint8_t sender, uint8_t target, uint16_t startRegister, uint8_t amountOfRegisters)
+	/// <summary>
+	/// Creates the packet which will be sended to the Hewalex controller.
+	/// </summary>
+	/// <param name="sender">The sender address.</param>
+	/// <param name="target">The target address.</param>
+	/// <param name="startRegister">The start idx of the registers to read.</param>
+	/// <param name="amountOfRegisters">The amount of registers to read.</param>
+	/// <returns></returns>
+	vector<uint8_t> Hewalex::CreatePacket(uint8_t sender, uint8_t target, uint16_t startRegister, uint8_t amountOfRegisters)
 	{
 		vector<uint8_t> header;
 		vector<uint8_t> payload;
@@ -117,7 +119,7 @@ namespace GateWay
 	/// <param name="data">The message to calculate the CRC about.</param>
 	/// <param name="length">The number of bytes to process.</param>
 	/// <returns>The calculated CRC.</returns>
-	uint16_t HewalexThread::crc16_xmodem(vector<uint8_t> data, uint8_t length)
+	uint16_t Hewalex::crc16_xmodem(vector<uint8_t> data, uint8_t length)
 	{
 		uint16_t polynomial = 0x1021;
 		uint16_t crc = 0x00;
@@ -139,7 +141,13 @@ namespace GateWay
 		return (crc);
 	}
 
-	uint8_t HewalexThread::crc8_dvb_s2(vector<uint8_t> data, uint8_t length)
+	/// <summary>
+	/// CRC check for the header of the message.
+	/// </summary>
+	/// <param name="data">The data.</param>
+	/// <param name="length">The data length.</param>
+	/// <returns>The calculated CRC.</returns>
+	uint8_t Hewalex::crc8_dvb_s2(vector<uint8_t> data, uint8_t length)
 	{
 		uint8_t crc = 0x00;
 		for (uint8_t i = 0; i < length; i++)
@@ -157,12 +165,17 @@ namespace GateWay
 		return crc;
 	}
 
-	void HewalexThread::Parse(std::vector<uint8_t> data)
+	/// <summary>
+	/// Parses the received data; updating the new values.
+	/// </summary>
+	/// <param name="data">The data to parse.</param>
+	void Hewalex::Parse(std::vector<uint8_t> data)
 	{
 		UpdateReceivedData((uint16_t)data.size());
 		if (data[0] != 0x69)
 		{
 			// Start of packet is 0x69. Anything else is wrong.
+			this->invalidCrc++;
 			return;
 		}
 
@@ -215,7 +228,12 @@ namespace GateWay
 		}
 	}
 
-	void HewalexThread::UpdateRegister(uint16_t registerNumber, uint8_t* data)
+	/// <summary>
+	/// Updates the register with given register number with the new data.
+	/// </summary>
+	/// <param name="registerNumber">The register number.</param>
+	/// <param name="data">The register data.</param>
+	void Hewalex::UpdateRegister(uint16_t registerNumber, uint8_t* data)
 	{
 		for (uint16_t i = 0; i < this->DataList.size(); i++)
 		{
@@ -226,8 +244,7 @@ namespace GateWay
 		}
 	}
 
-
-	void HewalexThread::FillRegisters()
+	void Hewalex::CreateDatalist()
 	{
 		this->DataList.push_back(DataValue(Date, 120, "Date"));								// Date
 		this->DataList.push_back(DataValue(Time, 124, "Time"));								// Time

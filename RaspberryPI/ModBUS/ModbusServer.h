@@ -3,9 +3,9 @@
 
 #include <DataValue.h>
 #include <SerialPort.h>
-#include <HewalexThread.h>
-#include <IntergasThread.h>
-#include <P1Thread.h>
+#include <Hewalex.h>
+#include <Intergas.h>
+#include <P1.h>
 
 using namespace std;
 
@@ -47,17 +47,15 @@ namespace GateWay
 	public:
 		ModbusServer();
 		~ModbusServer();
-		bool Initialize();
 		void Read();
 		void Parse(vector<uint8_t> data);
+		void CreateDatalist();
 
-		HewalexThread* Hewalex;
-		IntergasThread* Intergas;
-		P1Thread* P1;
+		Hewalex* hewalex;
+		Intergas* intergas;
+		P1* p1;
 
 	private:
-
-		SerialPort serialPortModbus;
 
 		uint16_t Crc(vector<uint8_t> data, uint8_t length);
 		void UpdateComStatistics();

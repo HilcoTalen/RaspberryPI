@@ -2,10 +2,10 @@
 #include <string.h>
 #include <ctype.h>
 #include "SerialPort.h"
-#include <HewalexThread.h>
-#include <IntergasThread.h>
+#include <Hewalex.h>
+#include <Intergas.h>
 #include <ModbusServer.h>
-#include <P1Thread.h>
+#include <P1.h>
 #include <wiringPi.h>
 
 // LED Pin - wiringPi pin 0 is BCM_GPIO 17.
@@ -16,10 +16,10 @@
 // which uses gpio export for setup for wiringPiSetupSys
 #define	LED	17
 
-static GateWay::IntergasThread intergas;
-static GateWay::HewalexThread hewalex;
-static GateWay::ModbusServer modBus;
-static GateWay::P1Thread p1;
+GateWay::Intergas intergas;
+GateWay::Hewalex hewalex;
+GateWay::ModbusServer modBus;
+//static GateWay::P1 p1;
 
 static void readIntergas()
 {
@@ -42,7 +42,6 @@ static void readModbus()
 	while (true)
 	{
 		modBus.Read();
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	}
 }
 
@@ -50,29 +49,33 @@ static void readP1()
 {
 	while (true)
 	{
-		p1.Read();
+		//p1.Read();
 		std::this_thread::sleep_for(std::chrono::milliseconds(200));
 	}
 }
 
 int main(void)
 {
-	intergas.Initialize();
+	intergas.OpenSerialPort();
+	intergas.CreateDatalist();
 
-	hewalex.Initialize();
+	hewalex.OpenSerialPort();
+	hewalex.CreateDatalist();
 
-	modBus.Initialize();
+	modBus.OpenSerialPort();
+	modBus.CreateDatalist();
 
-	p1.Initialize();
+	//p1.OpenSerialPort();
+	//p1.CreateDatalist();
 
-	std::thread draadjeIntergas(readIntergas);
-	std::thread draadjeHewalex(readHewalex);
-	std::thread draadjeModbus(readModbus);
+	std::thread IntergasThread(readIntergas);
+	std::thread HewalexThread(readHewalex);
+	std::thread ModbusThread(readModbus);
 	//std::thread draadjeP1(readP1);
 
-	modBus.Hewalex = &hewalex;
-	modBus.Intergas = &intergas;
-	modBus.P1 = &p1;
+	modBus.hewalex = &hewalex;
+	modBus.intergas = &intergas;
+	//modBus.p1 = &p1;
 
 	int i = 0;
 	while (true)

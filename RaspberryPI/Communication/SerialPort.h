@@ -91,6 +91,11 @@ namespace GateWay
 		/// \brief		Default constructor. You must specify at least the device before calling Open().
 		SerialPort();
 
+		/// \brief		Copy constructor.
+		SerialPort(const SerialPort& source);
+
+		SerialPort& operator=(const SerialPort& rhs);
+
 		/// \brief		Constructor that sets up serial port with the basic (required) parameters.
 		SerialPort(const std::string& device, BaudRate baudRate);
 

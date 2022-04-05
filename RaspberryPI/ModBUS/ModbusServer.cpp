@@ -3,7 +3,21 @@
 
 namespace GateWay
 {
+	/// <summary>
+	/// Initiates the ModBUS server.
+	/// Adds the data values (statistics) to the list.
+	/// </summary>
 	ModbusServer::ModbusServer()
+	{
+		this->portName = "/dev/ttyUSB1";
+		this->baudRate = BaudRate::B_38400;
+		this->dataBits = NumDataBits::EIGHT;
+		this->parity = Parity::EVEN;
+		this->stopBits = NumStopBits::ONE;
+		this->timeOut = 200;
+	}
+
+	void ModbusServer::CreateDatalist()
 	{
 		this->DataList.push_back(DataValue(DWord, 1, "Intergas Sent"));
 		this->DataList.push_back(DataValue(DWord, 2, "Intergas Received"));
@@ -17,48 +31,41 @@ namespace GateWay
 		this->DataList.push_back(DataValue(DWord, 10, "tmp"));
 	}
 
+	/// <summary>
+	/// Destructor.
+	/// </summary>
 	ModbusServer::~ModbusServer()
 	{
+		// Nothing to destruct.
+		// Serial port is closed in base class.
 	}
 
+	/// <summary>
+	/// Updates the communication statistics of all devices connected.
+	/// </summary>
 	void ModbusServer::UpdateComStatistics()
 	{
-		this->GetRegister(1).SetValue(this->Intergas->messagesSended);
-		this->GetRegister(2).SetValue(this->Intergas->messagesReceived);
-		this->GetRegister(3).SetValue(this->Intergas->timeOuts);
-		this->GetRegister(4).SetValue(this->Hewalex->messagesSended);
-		this->GetRegister(5).SetValue(this->Hewalex->messagesSended);
-		this->GetRegister(6).SetValue(this->Hewalex->timeOuts);
-		this->GetRegister(7).SetValue(this->P1->messagesSended);
-		this->GetRegister(8).SetValue(this->P1->messagesSended);
-		this->GetRegister(9).SetValue(this->P1->timeOuts);
+		this->GetRegister(1).SetValue(this->intergas->messagesSended);
+		this->GetRegister(2).SetValue(this->intergas->messagesReceived);
+		this->GetRegister(3).SetValue(this->intergas->timeOuts);
+		this->GetRegister(4).SetValue(this->hewalex->messagesSended);
+		this->GetRegister(5).SetValue(this->hewalex->messagesSended);
+		this->GetRegister(6).SetValue(this->hewalex->timeOuts);
+		//this->GetRegister(7).SetValue(this->p1->messagesSended);
+		//this->GetRegister(8).SetValue(this->p1->messagesSended);
+		//this->GetRegister(9).SetValue(this->p1->timeOuts);
 	}
 
-	bool ModbusServer::Initialize()
-	{
-		try
-		{
-			// Create serial port object and open serial port at 57600 buad, 8 data bits, no parity bit, and one stop bit (8n1)
-			SerialPort serialPort("/dev/ttyUSB2", BaudRate::B_38400, NumDataBits::EIGHT, Parity::EVEN, NumStopBits::ONE);
-			serialPortModbus = serialPort;
-			serialPortModbus.SetTimeout(100); // Block when reading until any data is received
-			serialPortModbus.Open();
-
-			return true;
-		}
-		catch (Exception)
-		{
-			return false;
-		}
-	}
-
+	/// <summary>
+	/// Reads the serial port, and parses the received data.
+	/// </summary>
 	void ModbusServer::Read()
 	{
 		// Read the data.
 		std::string readData;
 		std::vector<uint8_t> data;
-		serialPortModbus.bytesReceived = 0;
-		serialPortModbus.ReadBinary(data);
+		serialPort.bytesReceived = 0;
+		serialPort.ReadBinary(data);
 		if (data.size() != 0)
 		{
 			this->Parse(data);
@@ -66,6 +73,7 @@ namespace GateWay
 
 		// Update the statistics
 		this->UpdateComStatistics();
+		this->Sleep(50);
 	}
 
 	void ModbusServer::returnData(FunctionCodes functionCode, uint8_t slaveAddress, uint16_t startAddress, vector<uint8_t> returnData)
@@ -81,9 +89,17 @@ namespace GateWay
 		uint16_t crc = this->Crc(data, (uint8_t)data.size());
 		data.push_back((uint8_t)(crc & 0xFF));
 		data.push_back((uint8_t)(crc >> 8));
-		this->serialPortModbus.WriteBinary(data);
+		this->serialPort.WriteBinary(data);
 	}
 
+	/// <summary>
+	/// Sends an error code to the ModBUS client.
+	/// </summary>
+	/// <param name="errorCode">The error code.</param>
+	/// <param name="functionCode">The original function code.</param>
+	/// <param name="slaveAddress">The slave (client) address.</param>
+	/// <param name="startingAddress">The starting address (only for the debug message).</param>
+	/// <param name="quantity">The quantity (only for the debug message).</param>
 	void ModbusServer::returnErrorCode(ErrorCodes errorCode, FunctionCodes functionCode, uint8_t slaveAddress, uint16_t startingAddress, uint16_t quantity)
 	{
 		vector<uint8_t> data;
@@ -93,10 +109,16 @@ namespace GateWay
 		uint16_t crc = this->Crc(data, (uint8_t)data.size());
 		data.push_back((uint8_t)(crc << 8));
 		data.push_back((uint8_t)(crc & 0xFF));
-		this->serialPortModbus.WriteBinary(data);
+		this->serialPort.WriteBinary(data);
 		std::cout << "Wrong request, FC: " << functionCode << " Register: " << startingAddress << " Amount: " << quantity << std::endl;
 	}
 
+	/// <summary>
+	/// Calculates the CRC code for the given data, with given length.
+	/// </summary>
+	/// <param name="data">The data.</param>
+	/// <param name="length">The length of the data, to calculate the CRC over.</param>
+	/// <returns>The calculated CRC code.</returns>
 	uint16_t ModbusServer::Crc(vector<uint8_t> data, uint8_t length)
 	{
 		uint16_t crc = 0xFFFF;
@@ -117,6 +139,13 @@ namespace GateWay
 		return crc;
 	}
 
+	/// <summary>
+	/// Retrieves the requested data of the devices.
+	/// </summary>
+	/// <param name="slaveAddress">The slave address.</param>
+	/// <param name="functionCode">The function code.</param>
+	/// <param name="startingAddress">The starting address.</param>
+	/// <param name="quantity">The quantity of the registers.</param>
 	void ModbusServer::RetrieveRegisterData(uint8_t slaveAddress, FunctionCodes functionCode, uint16_t startingAddress, uint16_t quantity)
 	{
 		CommunicationStats* device;
@@ -126,13 +155,13 @@ namespace GateWay
 			device = this;
 			break;
 		case 2:
-			device = Intergas;
+			device = intergas;
 			break;
 		case 3:
-			device = Hewalex;
+			device = hewalex;
 			break;
 		case 4:
-			device = P1;
+			device = p1;
 			break;
 		default:
 			return;
@@ -180,6 +209,10 @@ namespace GateWay
 		}
 	}
 
+	/// <summary>
+	/// Parses the readed data.
+	/// </summary>
+	/// <param name="data">The data to parse.</param>
 	void ModbusServer::Parse(vector<uint8_t> data)
 	{
 		if (data.size() < 8)

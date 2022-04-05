@@ -5,6 +5,12 @@ namespace GateWay
 {
 	using namespace std;
 
+	/// <summary>
+	/// Initiates a new data value.
+	/// </summary>
+	/// <param name="dataType">The data value type.</param>
+	/// <param name="address">The data value address.</param>
+	/// <param name="name">The data value name. (Only used for printing).</param>
 	DataValue::DataValue(DataType dataType, uint16_t address, string name)
 	{
 		this->dataType = dataType;
@@ -16,6 +22,13 @@ namespace GateWay
 		this->divider = 1;
 	}
 
+	/// <summary>
+	/// Initiates a new data value, including the divider.
+	/// </summary>
+	/// <param name="dataType">The data value type.</param>
+	/// <param name="address">The data value address.</param>
+	/// <param name="name">The data value name. (Only used for printing).</param>
+	/// <param name="divider">The data value divider.</param>
 	DataValue::DataValue(DataType dataType, uint16_t address, string name, int divider)
 	{
 		this->dataType = dataType;
@@ -27,9 +40,17 @@ namespace GateWay
 		this->int32Value = 0;
 	}
 
+	/// <summary>
+	/// The destructor.
+	/// </summary>
 	DataValue::~DataValue()
 	{
 	}
+
+	/// <summary>
+	/// The copy constructor
+	/// </summary>
+	/// <param name="source"></param>
 	DataValue::DataValue(const DataValue& source)
 	{
 		this->dataType = source.dataType;
@@ -40,21 +61,29 @@ namespace GateWay
 		this->divider = source.divider;
 		this->name = source.name;
 	}
+
+	/// <summary>
+	/// Sets a float value.
+	/// </summary>
+	/// <param name="value">The new value.</param>
 	void DataValue::SetValue(float value)
 	{
 		this->floatValue = value;
 	}
 
+	/// <summary>
+	/// Sets a 8 bit value.
+	/// </summary>
+	/// <param name="value">The new value.</param>
 	void DataValue::SetValue(uint8_t value)
 	{
 		this->int16Value = (int16_t)value;
 	}
 
-	void DataValue::SetValue(int16_t value)
-	{
-		this->int16Value = value;
-	}
-
+	/// <summary>
+	/// Sets a new value.
+	/// </summary>
+	/// <param name="value">The new value.</param>
 	void DataValue::SetValue(uint8_t* data)
 	{
 		switch (this->dataType)
@@ -84,17 +113,23 @@ namespace GateWay
 		}
 	}
 
+	/// <summary>
+	/// Sets a 32 bit value.
+	/// </summary>
+	/// <param name="value"></param>
 	void DataValue::SetValue(int32_t value)
 	{
 		this->int32Value = value;
 	}
-	void DataValue::SetValue(tm value)
-	{
-		this->dateTimeValue = value;
-	}
+
+	/// <summary>
+	/// Creates a string containing the main information of the data value.
+	/// </summary>
+	/// <returns></returns>
 	string DataValue::ToString()
 	{
 		string tmp(this->name);
+		tmp.append(":\t ");
 		switch (this->dataType)
 		{
 		case Word:
@@ -124,6 +159,10 @@ namespace GateWay
 		}
 	}
 
+	/// <summary>
+	/// Returns the bytes, containing the data value.
+	/// </summary>
+	/// <returns>The bytes containing the data value.</returns>
 	vector<uint8_t> DataValue::getBytes()
 	{
 		vector<uint8_t> data;

@@ -8,13 +8,13 @@ namespace GateWay
 {
 	using namespace std;
 
-	class P1Thread : public CommunicationStats
+	class P1 : public CommunicationStats
 	{
 	public:
-		P1Thread();
-		~P1Thread();
-		bool Initialize();
+		P1();
+		~P1();
 		void Read();
+		void CreateDatalist();
 
 	private:
 	};
