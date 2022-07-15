@@ -12,7 +12,7 @@ namespace GateWay
 	/// </summary>
 	Intergas::Intergas()
 	{
-		this->portName = "/dev/ttyUSB0";
+		this->Name = "Intergas";
 		this->baudRate = BaudRate::B_9600;
 		this->dataBits = NumDataBits::EIGHT;
 		this->parity = Parity::NONE;
@@ -67,7 +67,7 @@ namespace GateWay
 		this->serialPort.ReadBinary(data);
 		if (data.size() == 0)
 		{
-			timeOuts++;
+			this->UpdateTimeout(false);
 		}
 		else
 		{
@@ -77,10 +77,11 @@ namespace GateWay
 		if (data.size() == 32)
 		{
 			Parse(data, messageType);
-			PrintValues();
+			// PrintValues();
 		}
 		else
 		{
+			this->UpdateTimeout(false);
 			std::cout << "Received incorrect message" << std::endl;
 		}
 
@@ -97,6 +98,7 @@ namespace GateWay
 	{
 		if (data.size() == 32)
 		{
+			this->UpdateTimeout(true);
 			std::string str(data.begin(), data.end());
 
 			switch (messageType)
@@ -240,6 +242,7 @@ namespace GateWay
 		else
 		{
 			cout << "Invalid bytes received: " << data.size() << endl;
+			this->UpdateTimeout(false);
 		}
 	}
 
@@ -279,7 +282,7 @@ namespace GateWay
 		float f;
 		if (msb > 127)
 		{
-			f = -(float(msb ^ 255) + 1) * 256 - lsb / 100;
+			f = -(float(msb ^ 255) + 1) * 256 - lsb / static_cast<float>(100);
 		}
 		else
 		{

@@ -13,7 +13,7 @@ namespace GateWay
 	/// </summary>
 	Hewalex::Hewalex()
 	{
-		this->portName = "/dev/ttyUSB2";
+		this->Name = "Hewalex";
 		this->baudRate = BaudRate::B_38400;
 		this->dataBits = NumDataBits::EIGHT;
 		this->parity = Parity::NONE;
@@ -61,9 +61,9 @@ namespace GateWay
 		}
 		else
 		{
-			this->timeOuts++;
+			this->UpdateTimeout(false);
 		}
-		this->PrintValues();
+		//this->PrintValues();
 		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	}
 
@@ -175,6 +175,7 @@ namespace GateWay
 		if (data[0] != 0x69)
 		{
 			// Start of packet is 0x69. Anything else is wrong.
+			this->UpdateTimeout(false);
 			this->invalidCrc++;
 			return;
 		}
@@ -183,6 +184,7 @@ namespace GateWay
 		if (crc8_dvb_s2(data, 7) != data[7])
 		{
 			// The payload CRC is invalid, abort parsing.
+			this->UpdateTimeout(false);
 			return;
 		}
 
@@ -192,6 +194,7 @@ namespace GateWay
 		if (payloadBytes + 8 != (uint8_t)data.size())
 		{
 			// The amount of bytes is invalid. abort parsing.
+			this->UpdateTimeout(false);
 			return;
 		}
 
@@ -208,11 +211,12 @@ namespace GateWay
 		if (payloadCRC != calculatedCRC)
 		{
 			// Invalid CRC of the payload. Abort parsing.
+			this->UpdateTimeout(false);
 			return;
 		}
 
 		// CRC's are ok; continue with parsing
-
+		this->UpdateTimeout(true);
 		if (payload[4] == 0x50)
 		{
 			uint8_t amountRegisters = payload[7];

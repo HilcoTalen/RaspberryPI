@@ -125,6 +125,8 @@ namespace GateWay
 
 		void EnableDisableLed(bool enable);
 
+		bool Busy();
+
 		bool BytesReceiving();
 
 		bool ReceivedMessageComplete();
@@ -226,6 +228,8 @@ namespace GateWay
 		int fileDesc_;
 
 		bool echo_;
+
+		bool busy;
 
 		bool receivedMessageCompleted;
 

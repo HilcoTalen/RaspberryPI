@@ -32,13 +32,13 @@ namespace GateWay
 		~Intergas();
 
 	private:
-		uint32_t messageNumberLastData = 0;
-		uint32_t messageNumberLastParameters = 0;
-		uint32_t messageNumberLastParametersExt = 0;
-		uint32_t messageNumberLastErrorCodes = 0;
-		uint32_t messageNumberLastStatistics = 0;
-		uint32_t messageNumberLastProductionCode = 0;
-		uint32_t messageNumberLastRevision = 0;
+		int32_t messageNumberLastData = 0;
+		int32_t messageNumberLastParameters = 0;
+		int32_t messageNumberLastParametersExt = 0;
+		int32_t messageNumberLastErrorCodes = 0;
+		int32_t messageNumberLastStatistics = 0;
+		int32_t messageNumberLastProductionCode = 0;
+		int32_t messageNumberLastRevision = 0;
 
 		static const int intervalRevision = 250;
 		static const int intervalData = 1;

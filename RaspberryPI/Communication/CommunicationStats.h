@@ -12,15 +12,17 @@ namespace GateWay
 	public:
 		CommunicationStats();
 		~CommunicationStats();
-		
+
 		void UpdateSendedData(uint16_t bytes);
 		void UpdateReceivedData(uint16_t bytes);
 		DataValue& GetRegister(uint16_t address);
-		bool OpenSerialPort();
+		bool OpenSerialPort(string serialPort);
+		uint16_t GetTimeouts();
 		bool HasRegister(uint16_t address);
-		uint16_t timeOuts;
+		void SwitchComport(string ttyInterface);
+		bool online;
 		uint16_t invalidCrc;
-		uint16_t messagesSended;
+		int16_t messagesSended;
 		uint16_t messagesReceived;
 
 	protected:
@@ -28,6 +30,7 @@ namespace GateWay
 		vector<DataValue> DataList;
 		void PrintValues();
 		void Sleep(int milliSeconds);
+		void UpdateTimeout(bool validDataReceived);
 		// Serial port settings.
 		SerialPort serialPort;
 		string portName;
@@ -36,16 +39,14 @@ namespace GateWay
 		Parity parity;
 		NumStopBits stopBits;
 		int timeOut = 1000;
+		string Name;
 
-		
 	private:
 		virtual void CreateDatalist() = 0;
-		
+		uint16_t timeOuts;
 		uint16_t bytesReceived;
 		uint16_t bytesSended;
-		
-
-		
+		uint8_t consecutiveTimeouts;
 	};
 }
 #endif // !COMMUNICATIONSTATS_H

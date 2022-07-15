@@ -31,11 +31,39 @@ namespace GateWay
 		std::this_thread::sleep_for(std::chrono::milliseconds(milliSeconds));
 	}
 
-	bool CommunicationStats::OpenSerialPort()
+	void CommunicationStats::UpdateTimeout(bool validDataReceived)
 	{
+		if (validDataReceived)
+		{
+			this->online = true;
+			this->consecutiveTimeouts = 0;
+		}
+		else
+		{
+			this->timeOut++;
+			this->consecutiveTimeouts++;
+			if (this->consecutiveTimeouts > 5)
+			{
+				this->online = false;
+			}
+
+			// Prevent overflow
+			if (this->consecutiveTimeouts > 250)
+			{
+				this->consecutiveTimeouts = 6;
+			}
+		}
+	}
+
+	bool CommunicationStats::OpenSerialPort(string ttyInterface)
+	{
+		this->portName = ttyInterface;
+
+		std::cout << this->Name << ": Try to open port: " << ttyInterface << std::endl;
+
 		try
 		{
-			// Create serial port object and open serial port at 57600 buad, 8 data bits, no parity bit, and one stop bit (8n1)
+			// Create serial port object and open serial port.
 			this->serialPort = SerialPort();
 			this->serialPort.SetDevice(this->portName);
 			this->serialPort.SetBaudRate(this->baudRate);
@@ -44,12 +72,22 @@ namespace GateWay
 			this->serialPort.SetNumStopBits(this->stopBits);
 			this->serialPort.SetTimeout(this->timeOut);
 			this->serialPort.Open();
+
+			// Reset message sended
+			this->messagesSended = 0;
+			this->messagesReceived = 0;
+
 			return true;
 		}
 		catch (Exception)
 		{
 			return false;
 		}
+	}
+
+	uint16_t CommunicationStats::GetTimeouts()
+	{
+		return this->timeOuts;
 	}
 
 	/// <summary>
@@ -67,6 +105,18 @@ namespace GateWay
 			}
 		}
 		return false;
+	}
+
+	void CommunicationStats::SwitchComport(string ttyInterface)
+	{
+		while (this->serialPort.Busy())
+		{
+			// just wait
+			this->Sleep(100);
+		}
+		std::cout << this->Name << ": Close port: " << std::endl;
+		this->serialPort.Close();
+		this->OpenSerialPort(ttyInterface);
 	}
 
 	/// <summary>
@@ -94,6 +144,8 @@ namespace GateWay
 				return dataValue;
 			}
 		}
+
+		throw ("Cannot find the register " + address);
 	}
 
 	/// <summary>

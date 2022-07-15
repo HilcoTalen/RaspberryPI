@@ -4,6 +4,7 @@ namespace GateWay
 {
 	P1::P1()
 	{
+		this->Name = "P1";
 	}
 
 	P1::~P1()

@@ -419,6 +419,7 @@ namespace GateWay
 	}
 
 	void SerialPort::Write(const std::string& data) {
+		this->busy = true;
 		if (state_ != State::OPEN)
 			THROW_EXCEPT(std::string() + __PRETTY_FUNCTION__ + " called but state != OPEN. Please call Open() first.");
 
@@ -435,9 +436,11 @@ namespace GateWay
 		if (writeResult == -1) {
 			throw std::system_error(EFAULT, std::system_category());
 		}
+		this->busy = false;
 	}
 
 	void SerialPort::WriteBinary(const std::vector<uint8_t>& data) {
+		this->busy = true;
 		if (state_ != State::OPEN)
 			THROW_EXCEPT(std::string() + __PRETTY_FUNCTION__ + " called but state != OPEN. Please call Open() first.");
 
@@ -454,10 +457,12 @@ namespace GateWay
 		if (writeResult == -1) {
 			throw std::system_error(EFAULT, std::system_category());
 		}
+		this->busy = false;
 	}
 
 	void SerialPort::Read(std::string& data)
 	{
+		this->busy = true;
 		data.clear();
 
 		if (fileDesc_ < 0) {
@@ -489,12 +494,18 @@ namespace GateWay
 			data = std::string(&readBuffer_[0], n);
 			//std::cout << *str << " and size of string =" << str->size() << "\r\n";
 		}
-
+		this->busy = false;
 		// If code reaches here, read must of been successful
+	}
+
+	bool SerialPort::Busy()
+	{
+		return this->busy;
 	}
 
 	bool SerialPort::BytesReceiving()
 	{
+		this->busy = true;
 		uint16_t bytesAvailable;
 		int retval = ioctl(fileDesc_, FIONREAD, &bytesAvailable);
 		if (retval < 0)
@@ -506,6 +517,7 @@ namespace GateWay
 		{
 			//std::cout << "Nothing received yet" << std::endl;
 			this->receivedMessageCompleted = false;
+			this->busy = false;
 			return false;
 		}
 		else if (bytesAvailable > this->bytesReceived)
@@ -514,12 +526,14 @@ namespace GateWay
 			{
 				// We are flooded, close this read, as it can become blocking.
 				receivedMessageCompleted = true;
+				this->busy = false;
 				return false;
 			}
 			//std::cout << "Bytes receiving" << std::endl;
 			this->receivedMessageCompleted = false;
 			this->bytesReceived = bytesAvailable;
 			digitalWrite(ledNoRx, true);
+			this->busy = false;
 			return true;
 		}
 		else if (bytesAvailable == this->bytesReceived)
@@ -528,9 +542,10 @@ namespace GateWay
 			 //std::cout << "No more bytes received, total: " << bytesAvailable << std::endl;
 			receivedMessageCompleted = true;
 			digitalWrite(ledNoRx, false);
+			this->busy = false;
 			return false;
 		}
-
+		this->busy = false;
 		return bytesAvailable;
 	}
 
@@ -541,11 +556,13 @@ namespace GateWay
 
 	void SerialPort::ReadBinary(std::vector<uint8_t>& data)
 	{
+		this->busy = true;
 		data.clear();
 
 		if (fileDesc_ < 0) {
 			//this->sp->PrintError(SmartPrint::Ss() << "Read() was called but file descriptor (fileDesc) was 0, indicating file has not been opened.");
 			//return false;
+			this->busy = false;
 			THROW_EXCEPT("Read() was called but file descriptor (fileDesc) was < 0, indicating file has not been opened.");
 		}
 
@@ -579,13 +596,14 @@ namespace GateWay
 		// Error Handling
 		if (n < 0) {
 			// Read was unsuccessful
+			this->busy = false;
 			throw std::system_error(EFAULT, std::system_category());
 		}
 
 		if (n > 0) {
 			copy(readBuffer_.begin(), readBuffer_.begin() + n, back_inserter(data));
 		}
-
+		this->busy = false;
 		// If code reaches here, read must of been successful
 	}
 
