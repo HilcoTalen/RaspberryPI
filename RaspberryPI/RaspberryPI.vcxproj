@@ -48,8 +48,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <LibraryPath>C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\VC\Linux\gcc_arm\arm-none-eabi\lib;$(LibraryPath)</LibraryPath>
-    <IncludePath>$(LinuxIncludePath);$(MSBuildProjectDirectory)\Communication;$(MSBuildProjectDirectory)\Hewalex;$(MSBuildProjectDirectory)\ModBUS;$(MSBuildProjectDirectory)\Intergas;$(MSBuildProjectDirectory)\P1;$(IncludePath)</IncludePath>
-    <SourcePath>$(LinuxIncludePath);$(MSBuildProjectDirectory)\Communication;$(MSBuildProjectDirectory)\Hewalex;$(MSBuildProjectDirectory)\ModBUS;$(MSBuildProjectDirectory)\Intergas;$(MSBuildProjectDirectory)\P1;$(IncludePath)</SourcePath>
+    <IncludePath>$(LinuxIncludePath);$(MSBuildProjectDirectory)\Communication;$(MSBuildProjectDirectory)\Hewalex;$(MSBuildProjectDirectory)\ModBUS;$(MSBuildProjectDirectory)\Intergas;$(MSBuildProjectDirectory)\Config;$(MSBuildProjectDirectory)\P1;$(IncludePath)</IncludePath>
+    <SourcePath>$(MSBuildProjectDirectory)\Config;$(LinuxIncludePath);$(MSBuildProjectDirectory)\Communication;$(MSBuildProjectDirectory)\Hewalex;$(MSBuildProjectDirectory)\ModBUS;$(MSBuildProjectDirectory)\Intergas;$(MSBuildProjectDirectory)\P1;$(IncludePath)</SourcePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <Link>
@@ -72,6 +72,7 @@
   <ItemGroup>
     <ClCompile Include="Communication\CommunicationStats.cpp" />
     <ClCompile Include="Communication\Exception.cpp" />
+    <ClCompile Include="Config\Config.cpp" />
     <ClCompile Include="Hewalex\Hewalex.cpp" />
     <ClCompile Include="Intergas\Intergas.cpp" />
     <ClCompile Include="main.cpp" />
@@ -83,6 +84,7 @@
   <ItemGroup>
     <ClInclude Include="Communication\CommunicationStats.h" />
     <ClInclude Include="Communication\Exception.h" />
+    <ClInclude Include="Config\Config.h" />
     <ClInclude Include="Hewalex\Hewalex.h" />
     <ClInclude Include="Intergas\Intergas.h" />
     <ClInclude Include="Communication\SerialPort.h" />

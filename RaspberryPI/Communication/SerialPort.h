@@ -139,6 +139,8 @@ namespace GateWay
 
 		void SetNumStopBits(NumStopBits numStopBits);
 
+		void ClearBuffer();
+
 		/// \brief      Sets the read timeout (in milliseconds)/blocking mode.
 		/// \details    Only call when state != OPEN. This method manupulates VMIN and VTIME.
 		/// \param      timeout_ms  Set to -1 to infinite timeout, 0 to return immediately with any data (non
@@ -239,11 +241,11 @@ namespace GateWay
 		int32_t timeout_ms_;
 
 		std::vector<char> readBuffer_;
-		unsigned char readBufferSize_B_;
+		unsigned int readBufferSize_B_;
 
 		static constexpr BaudRate defaultBaudRate_ = BaudRate::B_57600;
 		static constexpr int32_t defaultTimeout_ms_ = -1;
-		static constexpr unsigned char defaultReadBufferSize_B_ = 255;
+		static constexpr unsigned int defaultReadBufferSize_B_ = 2048;
 	};
 }
 #endif // #ifndef SERIAL_PORT_SERIAL_PORT_H

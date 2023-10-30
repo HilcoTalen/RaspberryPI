@@ -17,18 +17,22 @@ namespace GateWay
 		void UpdateReceivedData(uint16_t bytes);
 		DataValue& GetRegister(uint16_t address);
 		bool OpenSerialPort(string serialPort);
+		string GetSerialPort();
+		void CloseSerialPort();
 		uint16_t GetTimeouts();
 		bool HasRegister(uint16_t address);
+		void PrintHex(const std::vector<uint8_t>& data);
 		void SwitchComport(string ttyInterface);
 		bool online;
 		uint16_t invalidCrc;
-		int16_t messagesSended;
-		uint16_t messagesReceived;
+		int32_t messagesSended;
+		int32_t messagesReceived;
 
 	protected:
 		// The data list.
 		vector<DataValue> DataList;
 		void PrintValues();
+		void StoreValues();
 		void Sleep(int milliSeconds);
 		void UpdateTimeout(bool validDataReceived);
 		// Serial port settings.
@@ -39,6 +43,7 @@ namespace GateWay
 		Parity parity;
 		NumStopBits stopBits;
 		int timeOut = 1000;
+		uint8_t maximumTimeOuts = 5;
 		string Name;
 
 	private:

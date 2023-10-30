@@ -42,7 +42,7 @@ namespace GateWay
 
 		static const int intervalRevision = 250;
 		static const int intervalData = 1;
-		static const int intervalParameters = 50;
+		static const int intervalParameters = 10;
 		static const int intervalExtParameters = 50;
 		static const int intervalErrorCodes = 25;
 		static const int intervalCounters = 30;
@@ -87,14 +87,14 @@ namespace GateWay
 		const uint8_t aLinePowerConnectedTimes = 38;
 		const uint8_t aHeatingHours = 40;
 		const uint8_t aHotWaterHours = 42;
-		const uint8_t aBurnerStarts = 44;
+		const uint8_t aBurnerStartsHeating = 44;
 		const uint8_t aIgnitionFailed = 46;
 		const uint8_t aFlameLost = 48;
 		const uint8_t aResets = 50;
 		const uint8_t aGasmeterHeating = 52;
 		const uint8_t aGasmeterHotWater = 54;
 		const uint8_t aWaterMeter = 56;
-		const uint8_t aBurnerstartsHeating = 58;
+		const uint8_t aBurnerstartsDHW = 58;
 
 		// The parameters
 		const uint8_t aHeaterOn = 60;
@@ -126,7 +126,6 @@ namespace GateWay
 		const uint8_t aParametern = 86;
 		const uint8_t aParametero = 87;
 		const uint8_t aParameterP = 88;
-		const uint8_t aParameterr = 89;
 		const uint8_t aParameterFdot = 90;
 		const uint8_t aBetaCentralHeatingFlow = 91;
 		const uint8_t aParameterOdot = 92;
@@ -135,8 +134,6 @@ namespace GateWay
 		const uint8_t aParametercdot = 95;
 		const uint8_t aParameter3dot = 96;
 		const uint8_t aParameterPdot = 97;
-		const uint8_t aParameterq = 98;
-		const uint8_t aParameterL = 99;
 
 		// The fault codes
 		const uint8_t aFault0Times = 100;

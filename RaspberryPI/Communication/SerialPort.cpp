@@ -148,6 +148,14 @@ namespace GateWay
 			ConfigureTermios();
 	}
 
+	void SerialPort::ClearBuffer()
+	{
+		if (tcflush(this->fileDesc_, TCIOFLUSH) != 0) {
+			std::cerr << "Buffer cleared failed." << std::endl;
+		}
+		std::cout << device_ << " - Buffer cleared." << std::endl;
+	}
+
 	void SerialPort::Open()
 	{
 		// std::cout << "Attempting to open COM port \"" << device_ << "\"." << std::endl;
@@ -260,7 +268,7 @@ namespace GateWay
 			case BaudRate::B_0:
 				cfsetispeed(&tty, B0);
 				cfsetospeed(&tty, B0);
-				
+
 				break;
 			case BaudRate::B_50:
 				cfsetispeed(&tty, B50);
@@ -351,7 +359,7 @@ namespace GateWay
 		//===================== (.c_oflag) =================//
 
 		tty.c_oflag = 0;              // No remapping, no delays
-		tty.c_oflag &= ~OPOST;			// Make raw
+		tty.c_oflag &= ~OPOST;			// Make raw      (not processed by the system) (see: https://stackoverflow.com/questions/1798511/how-to-avoid-press-enter-with-any-getchar)
 
 		//================= CONTROL CHARACTERS (.c_cc[]) ==================//
 
@@ -492,7 +500,7 @@ namespace GateWay
 						//printf("%s\r\n", buf);
 			//			data.append(buf);
 			data = std::string(&readBuffer_[0], n);
-			//std::cout << *str << " and size of string =" << str->size() << "\r\n";
+			//std::cout << data << " and size of string =" << data.size() << "\r\n";
 		}
 		this->busy = false;
 		// If code reaches here, read must of been successful
@@ -506,6 +514,13 @@ namespace GateWay
 	bool SerialPort::BytesReceiving()
 	{
 		this->busy = true;
+
+		// Can happen when closing a port while reading.
+		if (this->state_ == State::CLOSED)
+		{
+			return false;
+		}
+
 		uint16_t bytesAvailable;
 		int retval = ioctl(fileDesc_, FIONREAD, &bytesAvailable);
 		if (retval < 0)
@@ -610,40 +625,40 @@ namespace GateWay
 	
 
 
-		 termios SerialPort::GetTermios() {
-	     if(fileDesc_ == -1)
-	         throw std::runtime_error("GetTermios() called but file descriptor was not valid.");
+	termios SerialPort::GetTermios() {
+		if (fileDesc_ == -1)
+			throw std::runtime_error("GetTermios() called but file descriptor was not valid.");
 
-	 	struct termios tty;
-	 	memset(&tty, 0, sizeof(tty));
+		struct termios tty;
+		memset(&tty, 0, sizeof(tty));
 
-	 	// Get current settings (will be stored in termios structure)
-	 	if(tcgetattr(fileDesc_, &tty) != 0)
-	 	{
-	 		// Error occurred
-	 		std::cout << "Could not get terminal attributes for \"" << device_ << "\" - " << strerror(errno) << std::endl;
-	 		throw std::system_error(EFAULT, std::system_category());
-	 		//return false;
-	 	}
+		// Get current settings (will be stored in termios structure)
+		if (tcgetattr(fileDesc_, &tty) != 0)
+		{
+			// Error occurred
+			std::cout << "Could not get terminal attributes for \"" << device_ << "\" - " << strerror(errno) << std::endl;
+			throw std::system_error(EFAULT, std::system_category());
+			//return false;
+		}
 
-	 	return tty;
-	 }
+		return tty;
+	}
 
-	 void SerialPort::SetTermios(termios myTermios)
-	 {
-	 	// Flush port, then apply attributes
-	 	tcflush(fileDesc_, TCIFLUSH);
+	void SerialPort::SetTermios(termios myTermios)
+	{
+		// Flush port, then apply attributes
+		tcflush(fileDesc_, TCIFLUSH);
 
-	 	if(tcsetattr(fileDesc_, TCSANOW, &myTermios) != 0)
-	 	{
-	 		// Error occurred
-	 		std::cout << "Could not apply terminal attributes for \"" << device_ << "\" - " << strerror(errno) << std::endl;
-	 		throw std::system_error(EFAULT, std::system_category());
+		if (tcsetattr(fileDesc_, TCSANOW, &myTermios) != 0)
+		{
+			// Error occurred
+			std::cout << "Could not apply terminal attributes for \"" << device_ << "\" - " << strerror(errno) << std::endl;
+			throw std::system_error(EFAULT, std::system_category());
 
-	 	}
+		}
 
-	 	// Successful!
-	 }
+		// Successful!
+	}
 
 
 	void SerialPort::Close() {

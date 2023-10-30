@@ -1,9 +1,27 @@
 #include "DataValue.h"
 #include <string.h>
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <iomanip>
 
 namespace GateWay
 {
 	using namespace std;
+
+	/// Fill the given string with spaces, until the string has the given length.
+	/// <param name="str">The string to fill.</param>
+	/// <param name="length">The length of the string.</param>
+	void DataValue::Fill(string& str, int length)
+	{
+		while (str.length() < length)
+		{
+			str.append(" ");
+		}
+	}
+
+	// Create a tm structure initialized to the epoch date (January 1, 1970, 00:00:00 UTC)
+	std::tm epoch_time = { 0, 0, 0, 1, 0, 70, 4, 0, 0 };
 
 	/// <summary>
 	/// Initiates a new data value.
@@ -16,10 +34,19 @@ namespace GateWay
 		this->dataType = dataType;
 		this->address = address;
 		this->name = name;
+		this->Fill(this->name, 40);
 		this->floatValue = 0.0f;
 		this->int16Value = 0;
 		this->int32Value = 0;
 		this->divider = 1;
+
+		// Initialize the time stamp (Unix timestamp)
+		this->dateTimeValue = epoch_time;
+		this->readOuts = 0;
+		this->offlineReadOuts = 0;
+		this->readTime = 0;
+		this->updateTime = 0;
+		this->readOutsModBUS = 0;
 	}
 
 	/// <summary>
@@ -29,15 +56,24 @@ namespace GateWay
 	/// <param name="address">The data value address.</param>
 	/// <param name="name">The data value name. (Only used for printing).</param>
 	/// <param name="divider">The data value divider.</param>
-	DataValue::DataValue(DataType dataType, uint16_t address, string name, int divider)
+	DataValue::DataValue(DataType dataType, uint16_t address, string name, float divider)
 	{
 		this->dataType = dataType;
 		this->address = address;
 		this->name = name;
+		this->Fill(this->name, 40);
 		this->divider = divider;
 		this->floatValue = 0.0f;
 		this->int16Value = 0;
 		this->int32Value = 0;
+		this->readOuts = 0;
+		this->offlineReadOuts = 0;
+
+		// INitialize the time stamp. (Unix timestamp)
+		this->dateTimeValue = epoch_time;
+		this->readTime = 0;
+		this->updateTime = 0;
+		this->readOutsModBUS = 0;
 	}
 
 	/// <summary>
@@ -60,6 +96,22 @@ namespace GateWay
 		this->int32Value = source.int32Value;
 		this->divider = source.divider;
 		this->name = source.name;
+		this->updateTime = source.updateTime;
+		this->readTime = source.readTime;
+		this->readOuts = source.readOuts;
+		this->DataReceived = source.DataReceived;
+		this->dateTimeValue = source.dateTimeValue;
+		this->readOutsModBUS = source.readOutsModBUS;
+		this->offlineReadOuts = source.offlineReadOuts;
+	}
+
+	/// <summary>
+	/// Gets the name of the data value.
+	/// </summary>
+	/// <returns></returns>
+	string DataValue::GetName()
+	{
+		return this->name;
 	}
 
 	/// <summary>
@@ -68,7 +120,17 @@ namespace GateWay
 	/// <param name="value">The new value.</param>
 	void DataValue::SetValue(float value)
 	{
-		this->floatValue = value;
+		this->floatValue = value / this->divider;
+		this->UpdateLatestUpdateTime();
+	}
+
+	/// <summary>
+	/// Gets the divider.
+	/// </summary>
+	/// <returns>The divider.</returns>
+	float DataValue::GetDivider()
+	{
+		return this->divider;
 	}
 
 	/// <summary>
@@ -77,7 +139,8 @@ namespace GateWay
 	/// <param name="value">The new value.</param>
 	void DataValue::SetValue(uint8_t value)
 	{
-		this->int16Value = (int16_t)value;
+		this->int16Value = static_cast<int8_t>(value);
+		this->UpdateLatestUpdateTime();
 	}
 
 	/// <summary>
@@ -111,6 +174,7 @@ namespace GateWay
 			this->dateTimeValue.tm_sec = data[2];
 			break;
 		}
+		this->UpdateLatestUpdateTime();
 	}
 
 	/// <summary>
@@ -120,6 +184,36 @@ namespace GateWay
 	void DataValue::SetValue(int32_t value)
 	{
 		this->int32Value = value;
+		this->UpdateLatestUpdateTime();
+	}
+
+	/// <summary>
+	/// Gets the latest update time, of the value in format YYYY-MM-DD hh:mm
+	/// </summary>
+	/// <returns></returns>
+	string DataValue::GetLatestUpdateTime()
+	{
+		// convert now to string form, and remove the trailing newline
+		char* dateTimeLocal = ctime(&updateTime);
+		if (dateTimeLocal[strlen(dateTimeLocal) - 1] == '\n')
+		{
+			dateTimeLocal[strlen(dateTimeLocal) - 1] = '\0';
+		}
+		string tmp(dateTimeLocal);
+
+		return tmp;
+	}
+
+	string DataValue::GetLatestReadTime()
+	{
+		// convert now to string form and remove the trailing newline
+		char* dateTimeLocal = ctime(&readTime);
+		if (dateTimeLocal[strlen(dateTimeLocal) - 1] == '\n')
+		{
+			dateTimeLocal[strlen(dateTimeLocal) - 1] = '\0';
+		}
+		string tmp(dateTimeLocal);
+		return tmp;
 	}
 
 	/// <summary>
@@ -129,34 +223,44 @@ namespace GateWay
 	string DataValue::ToString()
 	{
 		string tmp(this->name);
+		this->Fill(tmp, 30);
 		tmp.append(":\t ");
+
+		string val;
 		switch (this->dataType)
 		{
 		case Word:
-			return tmp.append(std::to_string(int16Value));
+			val = std::to_string(int16Value);
+			break;
 		case DWord:
-			return tmp.append(std::to_string(int32Value));
+			val = std::to_string(int32Value);
+			break;
 		case Float:
-			return tmp.append(std::to_string(floatValue));
-		case Date:
-			tmp.append(std::to_string(dateTimeValue.tm_year));
-			tmp.append("-");
-			tmp.append(std::to_string(dateTimeValue.tm_mon));
-			tmp.append("-");
-			tmp.append(std::to_string(dateTimeValue.tm_mday));
-			tmp.append("-");
-			return tmp;
-		case Time:
-			tmp.append(std::to_string(dateTimeValue.tm_hour));
-			tmp.append(":");
-			tmp.append(std::to_string(dateTimeValue.tm_min));
-			tmp.append(":");
-			tmp.append(std::to_string(dateTimeValue.tm_sec));
-			tmp.append(":");
-			return tmp;
-		default:
-			return string("");
+		{
+			std::ostringstream ss{};
+			ss << std::fixed << std::setprecision(2) << floatValue;
+			val = ss.str();
+			break;
 		}
+		case Date:
+			val = std::to_string(dateTimeValue.tm_year);
+			val.append("-");
+			val.append(std::to_string(dateTimeValue.tm_mon));
+			val.append("-");
+			val.append(std::to_string(dateTimeValue.tm_mday));
+			break;
+		case Time:
+			val = std::to_string(dateTimeValue.tm_hour);
+			val.append(":");
+			val.append(std::to_string(dateTimeValue.tm_min));
+			val.append(":");
+			val.append(std::to_string(dateTimeValue.tm_sec));
+			break;
+		}
+
+		this->Fill(val, 10);
+		tmp.append(val);
+		return tmp;
 	}
 
 	/// <summary>
@@ -196,6 +300,21 @@ namespace GateWay
 			data.push_back(byteArray[1]);
 			data.push_back(byteArray[0]);
 		}
+
+		// Update the latest read time.
+		this->readTime = time(0);
+
+		this->readOutsModBUS++;
 		return data;
+	}
+
+	/// <summary>
+	/// Updates the latest update time, of the data value.
+	/// </summary>
+	void DataValue::UpdateLatestUpdateTime()
+	{
+		this->DataReceived = true;
+		this->readOuts++;
+		this->updateTime = time(0);
 	}
 }

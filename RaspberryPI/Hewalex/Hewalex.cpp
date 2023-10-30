@@ -18,7 +18,8 @@ namespace GateWay
 		this->dataBits = NumDataBits::EIGHT;
 		this->parity = Parity::NONE;
 		this->stopBits = NumStopBits::ONE;
-		this->startRegister = 999;
+		this->startRegister = 50;
+		this->timeOut = 500;
 	}
 
 	/// <summary>
@@ -32,17 +33,14 @@ namespace GateWay
 
 	/// <summary>
 	/// Reads the data of the ZPS Hewalex controller.
-	/// Only read the register from 100 till 350.
+	/// Only read the register from 100 till 300.
 	/// </summary>
 	void Hewalex::Read()
 	{
-		if (this->startRegister > 350)
+		this->startRegister += 50;
+		if (this->startRegister > 250)
 		{
 			this->startRegister = 100;
-		}
-		else
-		{
-			this->startRegister += 50;
 		}
 
 		vector<uint8_t> command = CreatePacket(this->sourceAddress, this->destinationAddress, this->startRegister, this->amountOfRegisters);
@@ -63,6 +61,7 @@ namespace GateWay
 		{
 			this->UpdateTimeout(false);
 		}
+		this->StoreValues();
 		//this->PrintValues();
 		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	}
@@ -171,11 +170,13 @@ namespace GateWay
 	/// <param name="data">The data to parse.</param>
 	void Hewalex::Parse(std::vector<uint8_t> data)
 	{
-		UpdateReceivedData((uint16_t)data.size());
 		if (data[0] != 0x69)
 		{
 			// Start of packet is 0x69. Anything else is wrong.
+			std::cout << "Hewalex - Invalid start of packet." << std::endl;
+			this->PrintHex(data);
 			this->UpdateTimeout(false);
+			this->serialPort.ClearBuffer();
 			this->invalidCrc++;
 			return;
 		}
@@ -184,7 +185,10 @@ namespace GateWay
 		if (crc8_dvb_s2(data, 7) != data[7])
 		{
 			// The payload CRC is invalid, abort parsing.
+			std::cout << "Hewalex - Invalid CRC of the header." << std::endl;
 			this->UpdateTimeout(false);
+			this->serialPort.ClearBuffer();
+			this->invalidCrc++;
 			return;
 		}
 
@@ -194,7 +198,10 @@ namespace GateWay
 		if (payloadBytes + 8 != (uint8_t)data.size())
 		{
 			// The amount of bytes is invalid. abort parsing.
+			std::cout << "Hewalex - Invalid amount of bytes received, expected: " << payloadBytes + 8 << " received: " << data.size() << std::endl;
+			this->PrintHex(data);
 			this->UpdateTimeout(false);
+			this->serialPort.ClearBuffer();
 			return;
 		}
 
@@ -211,7 +218,11 @@ namespace GateWay
 		if (payloadCRC != calculatedCRC)
 		{
 			// Invalid CRC of the payload. Abort parsing.
+			std::cout << "Hewalex - Invalid CRC of the payload." << std::endl;
+			this->PrintHex(data);
 			this->UpdateTimeout(false);
+			this->serialPort.ClearBuffer();
+			this->invalidCrc++;
 			return;
 		}
 
@@ -230,6 +241,8 @@ namespace GateWay
 				}
 			}
 		}
+
+		// this->PrintValues();
 	}
 
 	/// <summary>
@@ -264,14 +277,14 @@ namespace GateWay
 		this->DataList.push_back(DataValue(Float, 152, "Flow Rate", 10));						// Flow Rate (l/min)
 		this->DataList.push_back(DataValue(Word, 154, "Pumps"));						// Collector Pump (P) ON (True/False)
 		this->DataList.push_back(DataValue(Word, 156, "CollectorPumpSpeed"));			// Collector Pump Speed (0-15)
-		this->DataList.push_back(DataValue(Float, 166, "TotalEnergy", 10));						// Total Energy (kWh)
+		this->DataList.push_back(DataValue(DWord, 166, "TotalEnergy"));						// Total Energy (kWh)
 		this->DataList.push_back(DataValue(Word, 170, "InstallationScheme"));			// Installation Scheme (1-19)
 		this->DataList.push_back(DataValue(Word, 172, "DisplayTimeout"));				// Display Timeout (1-10 min)
 		this->DataList.push_back(DataValue(Word, 174, "DisplayBrightness"));			// Display Brightness (1-10)
 		this->DataList.push_back(DataValue(Word, 176, "AlarmSoundEnabled"));			// Alarm Sound Enabled (True/False)
 		this->DataList.push_back(DataValue(Word, 178, "KeySoundEnabled"));				// Key Sound Enabled (True/False)
 		this->DataList.push_back(DataValue(Word, 180, "DisplayLanguage"));				// Display Language (0=PL, 1=EN, 2=DE, 3=FR, 4=PT, 5=ES, 6=NL, 7=IT, 8=CZ, 9=SL, ...)
-		this->DataList.push_back(DataValue(Float, 182, "FluidFreezingTemp", 10));			// Fluid Freezing Temp
+		this->DataList.push_back(DataValue(Float, 182, "FluidFreezingTemp"));			// Fluid Freezing Temp
 		this->DataList.push_back(DataValue(Float, 186, "FlowRateNominal", 10));					// Flow Rate Nominal (l/min)
 		this->DataList.push_back(DataValue(Word, 188, "FlowRateMeasurement"));			// Flow Rate Measurement (0=Rotameter, 1=Electronic G916, 2=Electronic)
 		this->DataList.push_back(DataValue(Float, 190, "FlowRateWeight", 100));					// Flow Rate Weight (imp/l)

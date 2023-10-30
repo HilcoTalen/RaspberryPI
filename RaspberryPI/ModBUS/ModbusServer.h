@@ -57,6 +57,7 @@ namespace GateWay
 
 	private:
 
+		uint16_t ticker;
 		uint16_t Crc(vector<uint8_t> data, uint8_t length);
 		void UpdateComStatistics();
 		void returnErrorCode(ErrorCodes errorCode, FunctionCodes functionCode, uint8_t slaveAddress, uint16_t startingAddress, uint16_t quantity);

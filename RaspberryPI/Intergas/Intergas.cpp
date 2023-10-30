@@ -37,6 +37,7 @@ namespace GateWay
 			break;
 		case PARAMETERSEXT:
 			command = "V1\r";
+			//command = "L%s?P.";
 			break;
 		case DATA:
 			command = "S?\r";
@@ -82,11 +83,13 @@ namespace GateWay
 		else
 		{
 			this->UpdateTimeout(false);
-			std::cout << "Received incorrect message" << std::endl;
+			std::cout << "Intergas: Received incorrect message (" << data.size() << " bytes)" << std::endl;
 		}
 
 		// Wait one second for next request.
 		this->Sleep(1000);
+
+		this->StoreValues();
 	}
 
 	/// <summary>
@@ -141,14 +144,14 @@ namespace GateWay
 				this->GetRegister(aLinePowerConnectedTimes).SetValue(ConvertBytesToUint16(data[2], data[3]));
 				this->GetRegister(aHeatingHours).SetValue(ConvertBytesToUint16(data[4], data[5]));
 				this->GetRegister(aHotWaterHours).SetValue(ConvertBytesToUint16(data[6], data[7]));
-				this->GetRegister(aBurnerStarts).SetValue(ConvertBytesToUint16(data[8], data[9]));
+				this->GetRegister(aBurnerStartsHeating).SetValue(ConvertBytesToUint16(data[8], data[9]));
 				this->GetRegister(aIgnitionFailed).SetValue(ConvertBytesToUint16(data[10], data[11]));
 				this->GetRegister(aFlameLost).SetValue(ConvertBytesToUint16(data[12], data[13]));
 				this->GetRegister(aResets).SetValue(ConvertBytesToUint16(data[14], data[15]));
 				this->GetRegister(aGasmeterHeating).SetValue((int32_t)ConvertBytesToUint32(data[16], data[17], data[18], data[19]));
 				this->GetRegister(aGasmeterHotWater).SetValue((int32_t)ConvertBytesToUint32(data[20], data[21], data[22], data[23]));
 				this->GetRegister(aWaterMeter).SetValue((int32_t)ConvertBytesToUint32(data[25], data[26], data[29], 0x00));
-				this->GetRegister(aBurnerstartsHeating).SetValue(ConvertBytesToUint16(data[27], data[28]));
+				this->GetRegister(aBurnerstartsDHW).SetValue(ConvertBytesToUint16(data[27], data[28]));
 				break;
 
 			case PARAMETERS:
@@ -182,20 +185,16 @@ namespace GateWay
 				this->GetRegister(aParametern).SetValue(data[26]);
 				this->GetRegister(aParametero).SetValue(data[27]);
 				this->GetRegister(aParameterP).SetValue(data[28]);
-				this->GetRegister(aParameterr).SetValue(data[29]);
 				this->GetRegister(aParameterFdot).SetValue(data[30]);
 				break;
 
 			case PARAMETERSEXT:
 				messageNumberLastParametersExt = messagesReceived;
-				this->GetRegister(aBetaCentralHeatingFlow).SetValue(data[0]);
-				this->GetRegister(aParameterOdot).SetValue(data[1]);
-				this->GetRegister(aParameter5dot).SetValue(data[3]);
-				this->GetRegister(aParametercdot).SetValue(data[4]);
-				this->GetRegister(aParameter3dot).SetValue(data[5]);
-				this->GetRegister(aParameterPdot).SetValue(data[6]);
-				this->GetRegister(aParameterq).SetValue(data[7]);
-				this->GetRegister(aParameterL).SetValue(data[8]);
+				this->GetRegister(aParameter3dot).SetValue(data[11]);
+				this->GetRegister(aParameter5dot).SetValue(data[2]);
+				this->GetRegister(aParametercdot).SetValue(data[21]);
+				//this->GetRegister(aParameterndot).SetValue(data[8]);
+				this->GetRegister(aParameterOdot).SetValue(data[9]);
 				break;
 
 			case ERROR_CODES:
@@ -355,14 +354,14 @@ namespace GateWay
 		this->DataList.push_back(DataValue(DWord, aLinePowerConnectedTimes, "Power connected times"));
 		this->DataList.push_back(DataValue(DWord, aHeatingHours, "Heating hours"));
 		this->DataList.push_back(DataValue(DWord, aHotWaterHours, "Hot water hours"));
-		this->DataList.push_back(DataValue(DWord, aBurnerStarts, "Burner starts"));
+		this->DataList.push_back(DataValue(DWord, aBurnerStartsHeating, "Burner starts (total)"));
 		this->DataList.push_back(DataValue(Word, aIgnitionFailed, "Ignition failed"));
 		this->DataList.push_back(DataValue(Word, aFlameLost, "Flame losts"));
 		this->DataList.push_back(DataValue(Word, aResets, "Resets"));
 		this->DataList.push_back(DataValue(DWord, aGasmeterHeating, "Gas meter heating"));
 		this->DataList.push_back(DataValue(DWord, aGasmeterHotWater, "Gas meter hot water"));
 		this->DataList.push_back(DataValue(DWord, aWaterMeter, "Water meter"));
-		this->DataList.push_back(DataValue(DWord, aBurnerstartsHeating, "Burner starts heating"));
+		this->DataList.push_back(DataValue(DWord, aBurnerstartsDHW, "Burner starts heating (Hot water)"));
 
 		// The parameters
 		this->DataList.push_back(DataValue(Word, aHeaterOn, "Heater on"));
@@ -394,7 +393,6 @@ namespace GateWay
 		this->DataList.push_back(DataValue(Word, aParametern, "Parameter n"));
 		this->DataList.push_back(DataValue(Word, aParametero, "Parameter o"));
 		this->DataList.push_back(DataValue(Word, aParameterP, "Parameter P"));
-		this->DataList.push_back(DataValue(Word, aParameterr, "Parameter r"));
 		this->DataList.push_back(DataValue(Word, aParameterFdot, "Parameter F."));
 		this->DataList.push_back(DataValue(Word, aBetaCentralHeatingFlow, "Parameter heating flow"));
 		this->DataList.push_back(DataValue(Word, aParameterOdot, "Parameter O."));
@@ -403,11 +401,9 @@ namespace GateWay
 		this->DataList.push_back(DataValue(Word, aParametercdot, "Parameter c."));
 		this->DataList.push_back(DataValue(Word, aParameter3dot, "Parameter 3."));
 		this->DataList.push_back(DataValue(Word, aParameterPdot, "Parameter P."));
-		this->DataList.push_back(DataValue(Word, aParameterq, "Parameter q"));
-		this->DataList.push_back(DataValue(Word, aParameterL, "Parameter L"));
 
 		// The fault list
-		this->DataList.push_back(DataValue(Word, aFault0Times, "Fault 1 times"));
+		this->DataList.push_back(DataValue(Word, aFault0Times, "Fault 0 times"));
 		this->DataList.push_back(DataValue(Word, aFault1Times, "Fault 1 times"));
 		this->DataList.push_back(DataValue(Word, aFault2Times, "Fault 2 times"));
 		this->DataList.push_back(DataValue(Word, aFault3Times, "Fault 3 times"));

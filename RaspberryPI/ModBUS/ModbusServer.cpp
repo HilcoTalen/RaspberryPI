@@ -14,7 +14,8 @@ namespace GateWay
 		this->dataBits = NumDataBits::EIGHT;
 		this->parity = Parity::EVEN;
 		this->stopBits = NumStopBits::ONE;
-		this->timeOut = 200;
+		this->timeOut = 5;
+		this->ticker = 0;
 	}
 
 	void ModbusServer::CreateDatalist()
@@ -25,7 +26,7 @@ namespace GateWay
 		this->DataList.push_back(DataValue(DWord, 4, "Hewalex Sent"));
 		this->DataList.push_back(DataValue(DWord, 5, "Hewalex Received"));
 		this->DataList.push_back(DataValue(DWord, 6, "Hewalex Timeouts"));
-		this->DataList.push_back(DataValue(DWord, 7, "P1 Sent"));
+		this->DataList.push_back(DataValue(DWord, 7, "P1 Sent (not used)"));
 		this->DataList.push_back(DataValue(DWord, 8, "P1 Received"));
 		this->DataList.push_back(DataValue(DWord, 9, "P1 Timeout"));
 		this->DataList.push_back(DataValue(DWord, 10, "Status"));
@@ -51,12 +52,14 @@ namespace GateWay
 		this->GetRegister(4).SetValue(this->hewalex->messagesSended);
 		this->GetRegister(5).SetValue(this->hewalex->messagesReceived);
 		this->GetRegister(6).SetValue(this->hewalex->GetTimeouts());
-		//this->GetRegister(7).SetValue(this->p1->messagesSended);
-		//this->GetRegister(8).SetValue(this->p1->messagesReceived);
-		//this->GetRegister(9).SetValue(this->p1->GetTimeouts());
-		uint16_t status = this->intergas->online;
-		status |= (uint8_t)this->hewalex->online << 1;
-		// status |= (uint8_t)this->p1->online << 1;
+		this->GetRegister(7).SetValue(this->p1->messagesSended);	// We do not send messages.
+		this->GetRegister(8).SetValue(this->p1->messagesReceived);
+		this->GetRegister(9).SetValue(this->p1->GetTimeouts());
+
+		// Merge the online status of the devices.
+		int status = this->intergas->online ? 1 : 0;
+		status |= this->hewalex->online ? 2 : 0;
+		status |= this->p1->online ? 4 : 0;
 		this->GetRegister(10).SetValue(status);
 	}
 
@@ -69,6 +72,11 @@ namespace GateWay
 		std::string readData;
 		std::vector<uint8_t> data;
 		serialPort.bytesReceived = 0;
+		while (serialPort.BytesReceiving())
+		{
+			this->Sleep(1);
+		}
+
 		serialPort.ReadBinary(data);
 		if (data.size() != 0)
 		{
@@ -77,7 +85,15 @@ namespace GateWay
 
 		// Update the statistics
 		this->UpdateComStatistics();
-		this->Sleep(50);
+		this->Sleep(1);
+
+		// Save some info.
+		this->ticker++;
+		if (this->ticker == 100)
+		{
+			this->StoreValues();
+			this->ticker = 0;
+		}
 	}
 
 	void ModbusServer::returnData(FunctionCodes functionCode, uint8_t slaveAddress, uint16_t startAddress, vector<uint8_t> returnData)
@@ -114,7 +130,13 @@ namespace GateWay
 		data.push_back((uint8_t)(crc << 8));
 		data.push_back((uint8_t)(crc & 0xFF));
 		this->serialPort.WriteBinary(data);
-		std::cout << "Wrong request, FC: " << functionCode << " Register: " << startingAddress << " Amount: " << quantity << std::endl;
+
+		// If the error code is not a slave device failure, we should print a debug message.
+		// The SlaveDeviceFailure will happen when the data is old, but it's not an error.
+		if (errorCode != SlaveDeviceFailure)
+		{
+			std::cout << dec << "Wrong request (" << unsigned(errorCode) << "), Address: " << unsigned(slaveAddress) << " FunctionCode : " << unsigned(functionCode) << " Register : " << unsigned(startingAddress) << " Amount : " << unsigned(quantity) << std::endl;
+		}
 	}
 
 	/// <summary>
@@ -184,67 +206,87 @@ namespace GateWay
 			{
 				if (device->HasRegister(startingAddress))
 				{
-					returnData = device->GetRegister(startingAddress).getBytes();
+					DataValue& dataValue = device->GetRegister(startingAddress);
+					if (dataValue.DataReceived)
+					{
+						// We have the data received from the device, lets continue.
+						returnData = device->GetRegister(startingAddress).getBytes();
+					}
+					else
+					{
+						this->returnErrorCode(SlaveDeviceFailure, functionCode, slaveAddress, startingAddress, quantity);
+						dataValue.offlineReadOuts++;
+						return;
+					}
 				}
 			}
 			break;
 		case ReadInputRegisters:
 		case ReadHoldingRegisters:
-
 			if (device->HasRegister(startingAddress))
 			{
-				returnData = device->GetRegister(startingAddress).getBytes();
-				uint8_t dataSizeOneRegister = returnData.size();
-				if (quantity == dataSizeOneRegister)
+				DataValue& dataValue = device->GetRegister(startingAddress);
+				if (dataValue.DataReceived)
 				{
-					// It's just a call for one register. So no extra bytes needed.
-				}
-				else
-				{
-					// We have a call for multiple registers.
-					// First check if the consecutive registers are avaialable.
-					uint8_t realRegistersRequested = quantity / dataSizeOneRegister;
-
-					vector<uint8_t> extraBytes;
-
-					bool consecutiveRegistersReadible = true;
-					// Start register is one higher, as the first register is already set in the returnData.
-					for (uint16_t registerAddress = startingAddress + 1; registerAddress < startingAddress + realRegistersRequested; registerAddress++)
+					// We have the data received from the device, lets continue.
+					returnData = device->GetRegister(startingAddress).getBytes();
+					uint8_t dataSizeOneRegister = returnData.size();
+					if (quantity == dataSizeOneRegister)
 					{
-						// Check if the register exists.
-						if (device->HasRegister(registerAddress))
+						// It's just a call for one register. So no extra bytes needed.
+					}
+					else
+					{
+						// We have a call for multiple registers.
+						// First check if the consecutive registers are avaialable.
+						uint8_t realRegistersRequested = quantity / dataSizeOneRegister;
+
+						vector<uint8_t> extraBytes;
+
+						bool consecutiveRegistersReadible = true;
+						// Start register is one higher, as the first register is already set in the returnData.
+						for (uint16_t registerAddress = startingAddress + 1; registerAddress < startingAddress + realRegistersRequested; registerAddress++)
 						{
-							vector<uint8_t> tmp = device->GetRegister(registerAddress).getBytes();
-							// Check if the data size of the register is the same size as the first one.
-							if (tmp.size() == dataSizeOneRegister)
+							// Check if the register exists.
+							if (device->HasRegister(registerAddress))
 							{
-								// Add this to the return data.
-								extraBytes.insert(extraBytes.end(), tmp.begin(), tmp.end());
+								vector<uint8_t> tmp = device->GetRegister(registerAddress).getBytes();
+								// Check if the data size of the register is the same size as the first one.
+								if (tmp.size() == dataSizeOneRegister)
+								{
+									// Add this to the return data.
+									extraBytes.insert(extraBytes.end(), tmp.begin(), tmp.end());
+								}
+								else
+								{
+									consecutiveRegistersReadible = false;
+									std::cout << "Multiple registers: The size of register address " << registerAddress << " differs from first address (" << startingAddress << " , Size: " << dataSizeOneRegister << std::endl;
+									break;
+								}
 							}
 							else
 							{
 								consecutiveRegistersReadible = false;
-								std::cout << "Multiple registers: The size of register address " << registerAddress << " differs from first address (" << startingAddress << " , Size: " << dataSizeOneRegister << std::endl;
+								std::cout << "Multiple registers: Register address " << registerAddress << " not found" << std::endl;
 								break;
 							}
 						}
+
+						if (consecutiveRegistersReadible)
+						{
+							returnData.insert(returnData.end(), extraBytes.begin(), extraBytes.end());
+						}
 						else
 						{
-							consecutiveRegistersReadible = false;
-							std::cout << "Multiple registers: Register address " << registerAddress << " not found" << std::endl;
-							break;
+							this->returnErrorCode(IllegalDataAddress, functionCode, slaveAddress, startingAddress, quantity);
+							return;
 						}
 					}
-
-					if (consecutiveRegistersReadible)
-					{
-						returnData.insert(returnData.end(), extraBytes.begin(), extraBytes.end());
-					}
-					else
-					{
-						this->returnErrorCode(IllegalDataAddress, functionCode, slaveAddress, startingAddress, quantity);
-						return;
-					}
+				}
+				else
+				{
+					this->returnErrorCode(SlaveDeviceFailure, functionCode, slaveAddress, startingAddress, quantity);
+					dataValue.offlineReadOuts++;
 				}
 			}
 
@@ -264,29 +306,42 @@ namespace GateWay
 		}
 	}
 
+	static void PrintHex(vector < uint8_t> data)
+	{
+		for (int i = 0; i < data.size(); i++)
+			cout << hex << setfill('0') << setw(2) << data[i] << " ";
+		cout << endl;
+	}
+
 	/// <summary>
 	/// Parses the readed data.
 	/// </summary>
 	/// <param name="data">The data to parse.</param>
 	void ModbusServer::Parse(vector<uint8_t> data)
 	{
-		if (data.size() < 8)
+		if (data.size() < 7)
 		{
-			std::cout << "Invalid ModBUS message received." << std::endl;
+			this->UpdateTimeout(false);
+			std::cout << "Invalid ModBUS message received (" << data.size() << " bytes). ";
+			PrintHex(data);
 			return;
 			// Invalid ModBUS message, just return, send no reply.
 		}
 
 		// Parse the stuff
 		uint16_t crcReceived = data[data.size() - 2] | (uint16_t)data[data.size() - 1] << 8;
-		if (this->Crc(data, (uint8_t)data.size() - 2) != crcReceived)
+		uint16_t crcCalculated = this->Crc(data, (uint8_t)data.size() - 2);
+		if (crcCalculated != crcReceived)
 		{
-			std::cout << "Invalid ModBUS CRC received." << std::endl;
+			std::cout << "Invalid ModBUS CRC received (" << crcReceived << "), expected: " << crcCalculated << " ";
 			this->invalidCrc++;
+			this->UpdateTimeout(false);
+			PrintHex(data);
 			return;
 			// Invalid CRC, return without sending reply.
 		}
 
+		this->UpdateTimeout(true);
 		uint8_t slaveAddress = data[0];
 		FunctionCodes functionCode = (FunctionCodes)data[1];
 		uint16_t startingAddress = data[3] | data[2] << 8;
