@@ -10,7 +10,7 @@ The application is written in C++ in a Visual Studio 2022 IDE. This is cross-com
 
 # ModBUS address table
 
-#Addres 1 (The server)
+## Addres 1 (The server)
 
 | Address | Name                 |
 | ------- | -------------------- |
@@ -25,7 +25,7 @@ The application is written in C++ in a Visual Studio 2022 IDE. This is cross-com
 | 9       | P1 Timeout           |
 | 10      | Status               |
 
-#Address 2 (Intergas)
+## Address 2 (Intergas)
 
 | Address | Name                           |
 | ------- | ------------------------------ |
@@ -126,7 +126,7 @@ The application is written in C++ in a Visual Studio 2022 IDE. This is cross-com
 | 130     | Fault 30 times                 |
 | 131     | Fault 31 times                 |
 
-#Addres 3 (Hewalex Sunboiler)
+## Addres 3 (Hewalex Sunboiler)
 | Address | Name                            |
 | ------- | ------------------------------- |
 | 120     | Date                            |
@@ -201,7 +201,7 @@ The application is written in C++ in a Visual Studio 2022 IDE. This is cross-com
 | 312     | Total Operation Time            |
 | 320     | Reg320                          |
 
-# Address 4 (P1 Meter)
+## Address 4 (P1 Meter)
 | Address | Name                          |
 | ------- | ----------------------------- |
 | 2       | Consumed low tariff           |
